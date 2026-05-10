@@ -57,3 +57,22 @@ jupyter notebook qlora_pipeline.ipynb
 * **Figures:** [figures/](figures/) — Reliability diagrams, confidence distributions, and visualizations
 * **PTQ Evaluation:** [ptq_eval/ptq_pipeline.ipynb](ptq_eval/ptq_pipeline.ipynb)
 * **QLoRA Training:** [qlora_train/qlora_pipeline.ipynb](qlora_train/qlora_pipeline.ipynb)
+
+## Citation
+
+Sharma, S. (2026). Confidence Without Competence: Calibration Risks in Real-World LLM Deployment Pipelines. Zenodo. https://doi.org/10.5281/zenodo.20111218
+
+```bibtex
+@misc{sharma2026confidence,
+  author    = {Sharma, Sagar},
+  title     = {Confidence Without Competence: Calibration Risks in Real-World LLM Deployment Pipelines},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.20111218},
+  url       = {https://doi.org/10.5281/zenodo.20111218}
+}
+```
+**Sagar Sharma**  
+2026  
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20111218.svg)](https://doi.org/10.5281/zenodo.20111218)  
+[Read the paper](paper/main.pdf)
