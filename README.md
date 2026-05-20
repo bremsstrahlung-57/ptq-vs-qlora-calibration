@@ -1,78 +1,63 @@
-# Confidence Without Competence: Calibration Risks in Real-World LLM Deployment Pipelines
-**Sagar Sharma**  
-2026  
-[Read the paper](paper/main.pdf)
+# Confidence Without Competence
+
+Calibration risks in real-world LLM deployment pipelines.
+
+This repository contains the anonymized TMLR submission source for the paper, along with experiment notebooks and figures. The current submission PDF is:
+
+[paper/main.pdf](paper/main.pdf)
+
+## Submission Status
+
+The paper has been rebuilt with the official TMLR LaTeX style:
+
+- `paper/main.tex` uses `\usepackage{tmlr}` without `accepted` or `preprint`.
+- `paper/main.pdf` is anonymized for double-blind review.
+- `paper/tmlr.sty`, `paper/tmlr.bst`, and `paper/fancyhdr.sty` are copied unchanged from the TMLR template.
+- `paper/main_old.pdf` is a deanonymized old Google Docs PDF and must not be submitted.
 
 ## Overview
-This repository accompanies the paper *"Confidence Without Competence"*, which studies how deployment pipelines affect **confidence calibration** in compressed LLMs.
 
-We compare two common approaches:
+The paper studies how two compressed LLM deployment pipelines affect confidence calibration:
+
 - Post-Training Quantization (PTQ)
-- Quantization-Aware Fine-Tuning (QLoRA)
+- QLoRA fine-tuning in a quantized weight space
 
-The focus is not just accuracy, but whether models can reliably estimate when they are wrong. Poor calibration  especially overconfidence introduces real risks in production systems.
+The focus is not just accuracy, but whether models can reliably estimate when they are wrong. Poor calibration, especially overconfidence, creates practical risk in production systems.
 
 ## Key Findings
-- **Calibration Gap:** PTQ shows 7.7× higher Expected Calibration Error (ECE) than QLoRA (0.293 vs 0.038), despite higher accuracy.
-- **Overconfidence:** PTQ produces high-confidence incorrect predictions 29.7% of the time vs 0.9% for QLoRA.
-- **Implication:** Accuracy alone is insufficient for deployment decisions. Calibration should be treated as a first-class metric.
+
+- PTQ shows 7.7x higher Expected Calibration Error than QLoRA: 0.293 vs. 0.038.
+- PTQ produces high-confidence incorrect predictions 29.7% of the time vs. 0.9% for QLoRA.
+- Accuracy alone is insufficient for deployment decisions; calibration should be measured directly.
 
 ## Methodology
-* **Base Model:** `Gemma-2-2B`
-* **Pipelines Evaluated:**
-  * **Pipeline A (PTQ):** `google/gemma-2-2b-it` with 4-bit NF4 quantization applied post-instruction tuning.
-  * **Pipeline B (QLoRA):** `google/gemma-2-2b` (base) quantized to 4-bit first, then fine-tuned using LoRA adapters on an Alpaca subset (800 samples).
-* **Benchmarks:** MMLU, ARC-Challenge, TruthfulQA
-* **Metrics:** ECE, Brier Score, Negative Log-Likelihood (NLL), Overconfidence Rate
+
+- Base model family: `Gemma-2-2B`
+- Pipeline A (PTQ): `google/gemma-2-2b-it` with 4-bit NF4 quantization applied after instruction tuning.
+- Pipeline B (QLoRA): `google/gemma-2-2b` quantized to 4-bit first, then fine-tuned with LoRA adapters on 800 Alpaca samples.
+- Benchmarks: MMLU, ARC-Challenge, TruthfulQA
+- Metrics: ECE, Brier score, Negative Log-Likelihood, overconfidence rate
 
 ## Results Snapshot
 
 | Metric | Pipeline B (QLoRA) | Pipeline A (PTQ) | Comparison |
 | :--- | :--- | :--- | :--- |
-| **Accuracy ↑** | 0.381 | **0.612** | 1.61x higher for PTQ |
-| **ECE ↓** | **0.038** | 0.293 | 7.7x worse for PTQ |
-| **Brier Score ↓** | **0.223** | 0.299 | 1.34x worse for PTQ |
-| **NLL ↓** | **1.359** | 1.726 | 1.27x worse for PTQ |
-| **Mean Confidence** | 0.412 | 0.904 | 2.2x higher for PTQ |
-| **Overconfidence Rate ↓** | **0.009** | 0.297 | 33x worse for PTQ |
-
-## Limitations
-The two pipelines differ in more than quantization order: Pipeline A uses Google's large-scale instruction tuning; Pipeline B uses 800 Alpaca samples. The calibration gap likely reflects instruction tuning scale as much as quantization order. We treat this as an empirical comparison of real-world deployment pipelines, not a controlled ablation — see Section 6 of the paper for full discussion.
-
-## Reproducibility
-All experiments use fixed dataset sampling (seed=42), identical evaluation logic for both pipelines, and confidence computed over constrained answer tokens (A/B/C/D).
-
-```bash
-# PTQ evaluation
-cd ptq_eval
-jupyter notebook ptq_pipeline.ipynb
-
-# QLoRA training
-cd qlora_train
-jupyter notebook qlora_pipeline.ipynb
-```
+| Accuracy | 0.381 | 0.612 | 1.61x higher for PTQ |
+| ECE | 0.038 | 0.293 | 7.7x worse for PTQ |
+| Brier score | 0.223 | 0.299 | 1.34x worse for PTQ |
+| NLL | 1.359 | 1.726 | 1.27x worse for PTQ |
+| Mean confidence | 0.412 | 0.904 | 2.2x higher for PTQ |
+| Overconfidence rate | 0.009 | 0.297 | 33x worse for PTQ |
 
 ## Repository Contents
-* **Paper:** [paper/main.pdf](paper/main.pdf)
-* **Figures:** [figures/](figures/) — Reliability diagrams, confidence distributions, and visualizations
-* **PTQ Evaluation:** [ptq_eval/ptq_pipeline.ipynb](ptq_eval/ptq_pipeline.ipynb)
-* **QLoRA Training:** [qlora_train/qlora_pipeline.ipynb](qlora_train/qlora_pipeline.ipynb)
 
-## Citation
+- `paper/main.tex`: anonymized TMLR source
+- `paper/main.pdf`: anonymized TMLR PDF
+- `paper/main.bib`: checked bibliography
+- `figures/`: reliability diagrams, confidence distributions, and comparison plots
+- `ptq_eval/ptq_pipeline.ipynb`: PTQ evaluation notebook
+- `qlora_train/qlora_pipeline.ipynb`: QLoRA training/evaluation notebook
 
-Sharma, S. (2026). Confidence Without Competence: Calibration Risks in Real-World LLM Deployment Pipelines. Zenodo. https://doi.org/10.5281/zenodo.20111218
+## Limitations
 
-```bibtex
-@misc{sharma2026confidence,
-  author    = {Sharma, Sagar},
-  title     = {Confidence Without Competence: Calibration Risks in Real-World LLM Deployment Pipelines},
-  year      = {2026},
-  publisher = {Zenodo},
-  doi       = {10.5281/zenodo.20111218},
-  url       = {https://doi.org/10.5281/zenodo.20111218}
-}
-```
-**Sagar Sharma**  
-2026  
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20111218.svg)](https://doi.org/10.5281/zenodo.20111218)  
-[Read the paper](paper/main.pdf)
+The two pipelines differ in more than quantization order. Pipeline A uses Google's large-scale instruction tuning, while Pipeline B uses 800 Alpaca samples. The observed calibration gap likely reflects instruction-tuning scale as well as quantization order, so the paper treats this as an empirical comparison of realistic deployment pipelines rather than a controlled causal ablation.
