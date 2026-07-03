@@ -1,63 +1,65 @@
 # Confidence Without Competence
 
-Calibration risks in real-world LLM deployment pipelines.
+### **Research Goal**
 
-This repository contains the anonymized TMLR submission source for the paper, along with experiment notebooks and figures. The current submission PDF is:
+The paper is titled "Confidence Without Competence: Calibration Risks in Real-World LLM Deployment Pipelines." The core question is: does the order in which you quantize and fine-tune an LLM affect its calibration? Calibration means how well a model's confidence matches its actual accuracy. A well-calibrated model that says it's 80% confident is right 80% of the time. A mis calibrated model is overconfident or underconfident in ways that are dangerous in deployment.
 
-[paper/main.pdf](paper/main.pdf)
+### **Why This Matters**
 
-## Submission Status
+In practice, teams deploy quantized models to save memory and inference cost. But there are two common pipelines: fine-tune first then quantize (PTQ), or quantize first then fine-tune on top (QLoRA). Nobody has cleanly isolated whether the order itself changes calibration behavior.
 
-The paper has been rebuilt with the official TMLR LaTeX style:
+### **The Experimental Design**
 
-- `paper/main.tex` uses `\usepackage{tmlr}` without `accepted` or `preprint`.
-- `paper/main.pdf` is anonymized for double-blind review.
-- `paper/tmlr.sty`, `paper/tmlr.bst`, and `paper/fancyhdr.sty` are copied unchanged from the TMLR template.
-- `paper/main_old.pdf` is a deanonymized old Google Docs PDF and must not be submitted.
+Two pipelines, same everything except order:
 
-## Overview
+- Pipeline A: Qwen3-1.7B-Base → LoRA fine-tune on UltraChat (fp16) → merge adapters → PTQ quantize
+- Pipeline B: Qwen3-1.7B-Base → PTQ quantize → QLoRA fine-tune on UltraChat
 
-The paper studies how two compressed LLM deployment pipelines affect confidence calibration:
+Same base model, same dataset, same token budget (4,749 examples, ~5M tokens), same LoRA config (rank 16, alpha 32, dropout 0.05, targeting q/k/v/o projections), same sequence length (2048), same seed (42). The only variable is when quantization happens relative to fine-tuning.
 
-- Post-Training Quantization (PTQ)
-- QLoRA fine-tuning in a quantized weight space
+### **Why LoRA for Pipeline A instead of full fine-tune**
 
-The focus is not just accuracy, but whether models can reliably estimate when they are wrong. Poor calibration, especially overconfidence, creates practical risk in production systems.
+Originally A was supposed to be full fine-tune, but Kaggle 2xT4 (16GB each) OOMs on full fine-tune of 1.7B even at seq_len=2048 because Adam optimizer states alone require ~13.6GB on top of weights and gradients. LoRA trains only 6.4M params (~0.37% of total), so optimizer states become negligible. Crucially, using LoRA for both pipelines is actually a cleaner design: the only difference between A and B is quantization order, not fine-tuning method. This directly addresses the original TMLR reviewer critique that the old design confounded quantization order with instruction-tuning scale.
 
-## Key Findings
+### **Quantization Method**
 
-- PTQ shows 7.7x higher Expected Calibration Error than QLoRA: 0.293 vs. 0.038.
-- PTQ produces high-confidence incorrect predictions 29.7% of the time vs. 0.9% for QLoRA.
-- Accuracy alone is insufficient for deployment decisions; calibration should be measured directly.
+Both pipelines use the same quantization method (bitsandbytes 4-bit NF4, or GPTQ, to be decided but must be identical). This is critical. If A and B used different quant methods, you'd have two confounds again.
 
-## Methodology
+### **Dataset**
 
-- Base model family: `Gemma-2-2B`
-- Pipeline A (PTQ): `google/gemma-2-2b-it` with 4-bit NF4 quantization applied after instruction tuning.
-- Pipeline B (QLoRA): `google/gemma-2-2b` quantized to 4-bit first, then fine-tuned with LoRA adapters on 800 Alpaca samples.
-- Benchmarks: MMLU, ARC-Challenge, TruthfulQA
-- Metrics: ECE, Brier score, Negative Log-Likelihood, overconfidence rate
+UltraChat-200k, subsampled to 5M tokens. 4,749 examples after dropping anything over 2048 tokens (436 dropped, ~8.4%). OpenThoughts was considered for a reasoning dimension but dropped because reasoning traces average 7,152 tokens, incompatible with T4 memory constraints but I will try to test on it too. 
 
-## Results Snapshot
+### **Evaluation**
 
-| Metric | Pipeline B (QLoRA) | Pipeline A (PTQ) | Comparison |
-| :--- | :--- | :--- | :--- |
-| Accuracy | 0.381 | 0.612 | 1.61x higher for PTQ |
-| ECE | 0.038 | 0.293 | 7.7x worse for PTQ |
-| Brier score | 0.223 | 0.299 | 1.34x worse for PTQ |
-| NLL | 1.359 | 1.726 | 1.27x worse for PTQ |
-| Mean confidence | 0.412 | 0.904 | 2.2x higher for PTQ |
-| Overconfidence rate | 0.009 | 0.297 | 33x worse for PTQ |
+After both pipelines are trained and quantized, run the same eval suite on all checkpoints:
 
-## Repository Contents
+- Capability: MMLU, ARC-Challenge, TruthfulQA 
+- Calibration: ECE, Brier Score, NLL, overconfidence rate
 
-- `paper/main.tex`: anonymized TMLR source
-- `paper/main.pdf`: anonymized TMLR PDF
-- `paper/main.bib`: checked bibliography
-- `figures/`: reliability diagrams, confidence distributions, and comparison plots
-- `ptq_eval/ptq_pipeline.ipynb`: PTQ evaluation notebook
-- `qlora_train/qlora_pipeline.ipynb`: QLoRA training/evaluation notebook
+The claim is not just that one pipeline is more accurate, but that quantization order produces measurably different calibration behavior independent of raw task performance.
 
-## Limitations
+### **Current State**
 
-The two pipelines differ in more than quantization order. Pipeline A uses Google's large-scale instruction tuning, while Pipeline B uses 800 Alpaca samples. The observed calibration gap likely reflects instruction-tuning scale as well as quantization order, so the paper treats this as an empirical comparison of realistic deployment pipelines rather than a controlled causal ablation.
+All experiments are complete. Results are in hand.
+
+**Dataset:** UltraChat-200k subsampled to 4,749 examples (~5M tokens), max_seq_len 2048, seed 42`.
+
+**Pipeline A:** Qwen3-1.7B-Base → LoRA fine-tune (rank 16, alpha 32, fp16, 1 epoch, lr 2e-4, batch 4, grad accum 4) → merge adapters → NF4 PTQ quantization. Trained cleanly in fp16 using standard TRL.
+
+**Pipeline B:** Qwen3-1.7B-Base → NF4 PTQ quantization → QLoRA fine-tune (same LoRA config, same dataset). Required patching TRL's sft_trainer.py to resolve a dtype conflict where gradient checkpointing was casting LoRA adapter weights from fp32 to bf16, causing GradScaler to fail with `_amp_foreach_non_finite_check_and_unscale_cuda not implemented for BFloat16`. The fix applied `use_reentrant=False` for gradient checkpointing and used cast_mixed_precision_params to explicitly keep adapter weights in fp32 and non-trainable parameters in fp16. Library versions pinned: `transformers 5.0.0`, `peft 0.18.1`, `trl 1.7.0`, `bitsandbytes 0.49.2`.
+
+Evaluation ran on MMLU, ARC-Challenge, TruthfulQA using custom inference loop (last-token logits over answer letter token IDs, softmax over choices). Results:
+
+| Metric | Pipeline A | Pipeline B |
+|---|---|---|
+| Accuracy | 0.492 | 0.486 |
+| ECE | 0.130 | 0.062 |
+| ECE (temp scaled) | 0.046 | 0.058 |
+| Brier Score | 0.640 | 0.624 |
+| NLL | 1.215 | 1.157 |
+| Overconfidence rate | 0.279 | 0.138 |
+| Optimal temperature | 1.642 | 1.119 |
+
+**Headline finding**: at matched accuracy, Pipeline B (quantize first) is roughly 2x better calibrated than Pipeline A (fine-tune first) on both ECE and overconfidence rate.
+
+**Known limitation**: Pipeline A trained in fp16, Pipeline B required the TRL patch which introduced non-reentrant gradient checkpointing. Training precision was not perfectly matched.

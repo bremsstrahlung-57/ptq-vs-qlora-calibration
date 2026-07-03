@@ -1,10 +1,5 @@
-*.txt
-*.jpg
-
-# TMLR template archive/unpacked copy; the needed style files are copied into paper/.
 tmlr-style-file-main/
 
-# LaTeX build byproducts.
 *.aux
 *.bbl
 *.blg
@@ -12,7 +7,6 @@ tmlr-style-file-main/
 *.fls
 *.log
 *.out
-*.synctex.gz
+*.synctex.g
 
-# Unsafe deanonymized PDF retained only as a local backup.
-paper/main_old.pdf
+__pycache__
