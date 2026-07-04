@@ -9,4 +9,4 @@ tmlr-style-file-main/
 *.out
 *.synctex.g
 
-__pycache__
+code

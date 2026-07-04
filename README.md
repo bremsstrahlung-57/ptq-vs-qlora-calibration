@@ -38,6 +38,10 @@ After both pipelines are trained and quantized, run the same eval suite on all c
 
 The claim is not just that one pipeline is more accurate, but that quantization order produces measurably different calibration behavior independent of raw task performance.
 
+### **Code Release**
+
+Code for training, quantization, evaluation, and calibration analysis will be added after the preprint is released. 
+
 ### **Current State**
 
 All experiments are complete. Results are in hand.
